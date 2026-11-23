@@ -34,9 +34,10 @@ A Jellyfin plugin that drives a [WLED](https://kno.wled.ge/) LED strip in real t
 
 1. Add the plugin repository to Jellyfin:  
    **Dashboard → Plugins → Repositories → +**  
-   URL: `https://raw.githubusercontent.com/NMe84/jellyfin-plugins/gh-pages/manifest.json`
-2. Install **WLED TV** from the catalogue and restart Jellyfin.
-3. Go to **Dashboard → WLED TV** and configure your strip.
+   URL: `https://github.com/PlumberGr/wled-tv-plugin/releases/latest/download/manifest.json`
+2. **Remove the upstream NMe84 repository** if it is listed — both publish the same plugin ID, and Jellyfin installs whichever has the higher version.
+3. Install **WLED TV** from the catalogue and restart Jellyfin.
+4. Go to **Dashboard → WLED TV** and configure your strip.
 
 ## Configuration
 
