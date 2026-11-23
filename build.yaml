@@ -1,5 +1,5 @@
 ---
-# Fork: PlumberGr/wled-tv-plugin — bump version below and push to main to release.
+# Fork: PlumberGr/wled-tv-plugin — bump `version:` below and push to main to release.
 name: "WLED TV"
 guid: "a4b5c6d7-e8f9-4a3b-8c7d-e6f5a4b3c2d1"
 version: "2.2.0.1"
