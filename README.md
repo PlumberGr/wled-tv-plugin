@@ -5,7 +5,10 @@
 > - **Three-sided strips** — "No LEDs on the bottom edge" (left + top + right). Clockwise = strip starts bottom-left.
 > - Settings page: device list no longer duplicated on revisits.
 >
-> Releases are built by `release.yml` and served to Jellyfin from a LAN mirror (`PLUGIN_BASE_URL`), because a private repo cannot be read anonymously. Remove the upstream repository from Jellyfin so its releases don't override this build.
+> **Install:** Jellyfin → Dashboard → Plugins → Repositories → add
+> `https://github.com/PlumberGr/wled-tv-plugin/releases/latest/download/manifest.json`
+> and **remove the upstream NMe84 repository**, otherwise its releases override this build.
+> Releasing: bump `version:` in `build.yaml` and push to `main`.
 
 # <img src="https://raw.githubusercontent.com/NMe84/jellyfin-wled-tv-plugin/master/wledtv.png" height="32"> WLED TV — Edge Lighting for Jellyfin
 

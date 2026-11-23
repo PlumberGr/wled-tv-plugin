@@ -64,15 +64,15 @@ jobs:
         run: |
           gh release upload "${{ steps.ver.outputs.tag }}" dist/* build.yaml --clobber
 
-      # Private repo: Jellyfin cannot download from it anonymously, so the
-      # manifest points at a LAN host that mirrors the release assets.
-      # Set the repository variable PLUGIN_BASE_URL (Settings -> Variables).
+      # Public repo: the manifest points at this release's GitHub downloads.
+      # Private repo: Jellyfin cannot download anonymously, so set the repository
+      # variable PLUGIN_BASE_URL to a LAN mirror of the release assets.
       - name: Build manifest.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.ver.outputs.version }}
           TAG: ${{ steps.ver.outputs.tag }}
-          BASE_URL: ${{ vars.PLUGIN_BASE_URL || 'http://10.10.20.240:8095' }}
+          BASE_URL: ${{ vars.PLUGIN_BASE_URL || format('https://github.com/{0}/releases/download/{1}', github.repository, steps.ver.outputs.tag) }}
         run: |
           set -euo pipefail
           export CHANGELOG="$(gh release view "$TAG" --json body --jq .body)"
