@@ -72,6 +72,19 @@
                     </div>
                 </div>
 
+                <!-- Three-sided strip -->
+                <div class="checkboxContainer checkboxContainer-withDescription" style="margin-bottom:.5em;">
+                    <label class="emby-checkbox-label">
+                        <input type="checkbox" id="chkSkipBottom" is="emby-checkbox" class="emby-checkbox">
+                        <span>No LEDs on the bottom edge (left + top + right only)</span>
+                    </label>
+                </div>
+                <div class="fieldDescription" style="margin-bottom:1.5em;">
+                    For a strip that runs up one side, across the top and down the other side. The strip must
+                    start at a bottom corner: <em>Clockwise</em> = starts bottom-left, <em>Counter-clockwise</em> =
+                    starts bottom-right. "Strip start position" is ignored.
+                </div>
+
                 <!-- Strip start + direction -->
                 <div style="display:flex;gap:16px;flex-wrap:wrap;">
                     <div class="inputContainer" style="flex:1;min-width:160px;">
@@ -197,6 +210,8 @@
 
     document.addEventListener('pageshow', function (e) {
         if (e.target.id !== 'WledTvConfigPage') return;
+        if (e.target.dataset.wledInit === '1') return;
+        e.target.dataset.wledInit = '1';
 
         // The emby-checkbox polyfill sometimes processes only the first checkbox
         // on the page.  Manually apply the same markup it injects so that all
@@ -236,6 +251,8 @@
         var lblBri    = document.getElementById('lblBrightness');
         var lblDelay  = document.getElementById('lblSyncDelay');
         var lblTotal  = document.getElementById('lblTotal');
+        var chkSkipBottom = document.getElementById('chkSkipBottom');
+        var deviceNames = {};
 
         var currentDeviceId = window.ApiClient ? window.ApiClient.deviceId() : '';
 
@@ -248,7 +265,8 @@
         }
 
         function updateSummary() {
-            lblTotal.textContent = 2 * (parseInt(numH.value) || 0) + 2 * (parseInt(numV.value) || 0);
+            lblTotal.textContent = (chkSkipBottom.checked ? 1 : 2) * (parseInt(numH.value) || 0) + 2 * (parseInt(numV.value) || 0);
+            selStart.disabled = chkSkipBottom.checked;
         }
 
         // ── Live label bindings ───────────────────────────────────────────────
@@ -256,6 +274,7 @@
         numDelay.addEventListener('input', function () { lblDelay.textContent = numDelay.value; });
         numH.addEventListener('input', updateSummary);
         numV.addEventListener('input', updateSummary);
+        chkSkipBottom.addEventListener('change', updateSummary);
 
         // ── Load settings + devices ───────────────────────────────────────────
         apiFetch('/WledTv/settings')
@@ -273,6 +292,7 @@
             chkBatchUpdates.checked     = cfg.batchUpdates !== false;
             chkDetectLetterbox.checked  = cfg.detectLetterbox !== false;
             chkDetectPillarbox.checked  = cfg.detectPillarbox !== false;
+            chkSkipBottom.checked       = cfg.skipBottomEdge === true;
             updateSummary();
 
             var savedDeviceId = cfg.deviceId || '';
@@ -316,6 +336,7 @@
                     } else if (dev.LastUserName) {
                         label += ' (' + dev.LastUserName + ')';
                     }
+                    deviceNames[dev.Id] = dev.Name || '';
                     entries.push({ id: dev.Id, label: label });
                 });
 
@@ -329,6 +350,10 @@
                 }
 
                 entries.sort(function (a, b) { return a.label.localeCompare(b.label); });
+
+                // The page script can run more than once per session; clear old
+                // entries (keep "Any device") so the list is not duplicated.
+                while (selDevice.options.length > 1) selDevice.remove(1);
 
                 entries.forEach(function (entry) {
                     var opt         = document.createElement('option');
@@ -358,6 +383,8 @@
                     brightness:         parseInt(rngBri.value),
                     displayLatencyMs:   parseInt(numDelay.value) || 0,
                     deviceId:           selDevice.value,
+                    deviceName:         deviceNames[selDevice.value] || '',
+                    skipBottomEdge:     chkSkipBottom.checked,
                     batchUpdates:       chkBatchUpdates.checked,
                     detectLetterbox:    chkDetectLetterbox.checked,
                     detectPillarbox:    chkDetectPillarbox.checked

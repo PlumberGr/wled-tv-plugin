@@ -1,3 +1,12 @@
+> **PlumberGr fork** of [NMe84/jellyfin-wled-tv-plugin](https://github.com/NMe84/jellyfin-wled-tv-plugin) (MIT). Local changes:
+> - **Device matching by name as well as ID.** Jellyfin Android TV reports a different device ID during playback than the one listed under Devices, so ID-only matching never fired. Selecting a device now also stores its name (e.g. `TCL98C7L`) and any session from that device matches (including other client apps on the same TV).
+> - **Stop always stops the active pipeline,** even if the device setting changed mid-playback.
+> - **WebSocket freeze fix.** WLED's state replies are drained; sends time out after 2 s and reconnect; 10 s keep-alive. Fixes LEDs freezing ~2.5 min into playback.
+> - **Three-sided strips** — "No LEDs on the bottom edge" (left + top + right). Clockwise = strip starts bottom-left.
+> - Settings page: device list no longer duplicated on revisits.
+>
+> Releases are built by `release.yml` and served to Jellyfin from a LAN mirror (`PLUGIN_BASE_URL`), because a private repo cannot be read anonymously. Remove the upstream repository from Jellyfin so its releases don't override this build.
+
 # <img src="https://raw.githubusercontent.com/NMe84/jellyfin-wled-tv-plugin/master/wledtv.png" height="32"> WLED TV — Edge Lighting for Jellyfin
 
 A Jellyfin plugin that drives a [WLED](https://kno.wled.ge/) LED strip in real time based on the colours at the edges of whatever is playing. Sampling happens **on the server**: Jellyfin decodes the playing video with its bundled ffmpeg, samples the edges of each frame, and streams the colours to WLED over a WebSocket. Nothing runs in the browser and nothing is injected into the web client, so it works on any client — including smart-TV apps (LG WebOS, etc.) where the browser cannot read the video surface.

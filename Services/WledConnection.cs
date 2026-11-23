@@ -35,6 +35,7 @@ internal sealed class WledConnection : IDisposable
         if (IsOpen) return true;
         Dispose();
         var ws = new ClientWebSocket();
+        ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(10);
         _ledsOn = false;
         try
         {
@@ -42,6 +43,7 @@ internal sealed class WledConnection : IDisposable
             cts.CancelAfter(TimeSpan.FromSeconds(5));
             await ws.ConnectAsync(new Uri(_url), cts.Token).ConfigureAwait(false);
             _ws = ws;
+            _ = Task.Run(() => DrainAsync(ws));
             return true;
         }
         catch
@@ -125,15 +127,49 @@ internal sealed class WledConnection : IDisposable
         sb.Append(H[b & 0xF]);
     }
 
-    private Task SendTextAsync(string json, CancellationToken ct)
+    // WLED pushes its state JSON back on the same socket.  If nobody reads it the
+    // receive buffer fills, the connection deadlocks and SendAsync hangs forever
+    // (LEDs freeze ~2.5 min into playback).  Read and discard everything.
+    private static async Task DrainAsync(ClientWebSocket ws)
     {
+        var buf = new byte[4096];
+        try
+        {
+            while (ws.State == WebSocketState.Open)
+            {
+                var r = await ws.ReceiveAsync(new ArraySegment<byte>(buf), CancellationToken.None).ConfigureAwait(false);
+                if (r.MessageType == WebSocketMessageType.Close)
+                {
+                    ws.Abort();
+                    return;
+                }
+            }
+        }
+        catch { /* socket closed or aborted */ }
+    }
+
+    // Sends with a 2 s timeout; a stuck send aborts the socket so the next frame
+    // reconnects instead of hanging forever.
+    private async Task SendTextAsync(string json, CancellationToken ct)
+    {
+        var ws = _ws!;
         var bytes = Encoding.ASCII.GetBytes(json);
-        return _ws!.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(2));
+        try
+        {
+            await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cts.Token).ConfigureAwait(false);
+        }
+        catch when (!ct.IsCancellationRequested)
+        {
+            try { ws.Abort(); } catch { /* ignore */ }
+            Dispose();
+        }
     }
 
     public void Dispose()
     {
-        try { _ws?.Dispose(); } catch { /* ignore */ }
+        try { _ws?.Abort(); _ws?.Dispose(); } catch { /* ignore */ }
         _ws = null;
         _ledsOn = false;
     }

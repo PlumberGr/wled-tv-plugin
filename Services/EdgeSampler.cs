@@ -28,9 +28,9 @@ internal static class EdgeSampler
         int hCount, int vCount,
         LedLoopStart loopStart, LedLoopDirection direction,
         bool detectLetterbox, bool detectPillarbox,
-        double panelAspect)
+        double panelAspect, bool skipBottom = false)
     {
-        var colors = new byte[(2 * hCount + 2 * vCount) * 3];
+        var colors = new byte[((skipBottom ? 1 : 2) * hCount + 2 * vCount) * 3];
         if (px == null || w <= 0 || h <= 0)
             return colors;
 
@@ -102,7 +102,16 @@ internal static class EdgeSampler
         }
 
         int H = hCount, V = vCount;
-        if (loopStart == LedLoopStart.BottomLeft)
+        if (skipBottom)
+        {
+            // Three-sided (U) strip: right side bottom→top, top right→left, left
+            // top→bottom.  Reversed below for Clockwise, i.e. a strip that starts
+            // bottom-left and runs up the left side.  LoopStart is ignored.
+            for (int i = 0; i < V; i++) Push(SampleV(V - 1 - i, V, false));
+            for (int i = H - 1; i >= 0; i--) Push(SampleH(i, H, true));
+            for (int i = 0; i < V; i++) Push(SampleV(i, V, true));
+        }
+        else if (loopStart == LedLoopStart.BottomLeft)
         {
             for (int i = 0; i < H; i++) Push(SampleH(i, H, false));
             for (int i = 0; i < V; i++) Push(SampleV(V - 1 - i, V, false));

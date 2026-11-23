@@ -80,8 +80,16 @@ public sealed class WledSamplingService : IHostedService, IDisposable
     {
         var cfg = Plugin.Instance?.Configuration;
         if (cfg is null) return;
-        if (!DeviceMatches(cfg, e.DeviceId)) return;
-        StopPipeline();
+        // Stop if this is the session we are sampling, whatever the device setting
+        // says now (the setting may have changed while it was playing).
+        bool ours;
+        lock (_lock)
+        {
+            ours = _pipeline != null &&
+                   ((!string.IsNullOrEmpty(e.PlaySessionId) && _pipeline.SessionKey == e.PlaySessionId) ||
+                    _pipeline.SessionKey.StartsWith((e.DeviceId ?? string.Empty) + "|", StringComparison.Ordinal));
+        }
+        if (ours || DeviceMatches(cfg, e.DeviceId, e.DeviceName)) StopPipeline();
     }
 
     private void HandleProgress(PlaybackProgressEventArgs e)
@@ -95,8 +103,12 @@ public sealed class WledSamplingService : IHostedService, IDisposable
             return;
         }
 
-        if (!DeviceMatches(cfg, e.DeviceId))
+        if (!DeviceMatches(cfg, e.DeviceId, e.DeviceName))
+        {
+            _logger.LogDebug("WledTv: ignoring playback from device {Id} ({Name}); configured {CfgId} ({CfgName})",
+                e.DeviceId, e.DeviceName, cfg.DeviceId, cfg.DeviceName);
             return;
+        }
 
         var item = e.Item;
         var path = item?.Path;
@@ -171,7 +183,7 @@ public sealed class WledSamplingService : IHostedService, IDisposable
 
         var pipeline = new Pipeline(
             _logger, _encoder.EncoderPath, cfg.WledWsUrl,
-            hCount, vCount, cfg.LoopStart, cfg.Direction,
+            hCount, vCount, cfg.LoopStart, cfg.Direction, cfg.SkipBottomEdge,
             cfg.DetectLetterbox, cfg.DetectPillarbox, cfg.BatchUpdates, cfg.Brightness,
             path, sw, sh, hdr, (double)hCount / vCount, fps, delaySec, sessionKey);
 
@@ -193,9 +205,11 @@ public sealed class WledSamplingService : IHostedService, IDisposable
         p?.Stop();
     }
 
-    private static bool DeviceMatches(PluginConfiguration cfg, string? deviceId) =>
+    private static bool DeviceMatches(PluginConfiguration cfg, string? deviceId, string? deviceName) =>
         string.IsNullOrEmpty(cfg.DeviceId) ||
-        string.Equals(cfg.DeviceId, deviceId, StringComparison.OrdinalIgnoreCase);
+        string.Equals(cfg.DeviceId, deviceId, StringComparison.OrdinalIgnoreCase) ||
+        (!string.IsNullOrEmpty(cfg.DeviceName) &&
+         string.Equals(cfg.DeviceName, deviceName, StringComparison.OrdinalIgnoreCase));
 
     private static bool IsHdr(MediaStream v) =>
         string.Equals(v.ColorTransfer, "smpte2084", StringComparison.OrdinalIgnoreCase) ||
@@ -217,6 +231,7 @@ public sealed class WledSamplingService : IHostedService, IDisposable
         private readonly int _hCount, _vCount, _sampleW, _sampleH, _brightness, _maxBuffer;
         private readonly LedLoopStart _loopStart;
         private readonly LedLoopDirection _direction;
+        private readonly bool _skipBottom;
         private readonly bool _letterbox, _pillarbox, _batch, _hdr;
         private readonly double _panelAspect, _fps, _delaySec;
         private readonly string _path;
@@ -244,7 +259,7 @@ public sealed class WledSamplingService : IHostedService, IDisposable
 
         public Pipeline(
             ILogger logger, string ffmpegPath, string wledUrl,
-            int hCount, int vCount, LedLoopStart loopStart, LedLoopDirection direction,
+            int hCount, int vCount, LedLoopStart loopStart, LedLoopDirection direction, bool skipBottom,
             bool letterbox, bool pillarbox, bool batch, int brightness,
             string path, int sampleW, int sampleH, bool hdr, double panelAspect,
             double fps, double delaySec, string sessionKey)
@@ -253,7 +268,7 @@ public sealed class WledSamplingService : IHostedService, IDisposable
             _ffmpegPath = ffmpegPath;
             _wled = new WledConnection(wledUrl);
             _hCount = hCount; _vCount = vCount;
-            _loopStart = loopStart; _direction = direction;
+            _loopStart = loopStart; _direction = direction; _skipBottom = skipBottom;
             _letterbox = letterbox; _pillarbox = pillarbox; _batch = batch; _brightness = brightness;
             _path = path; _sampleW = sampleW; _sampleH = sampleH; _hdr = hdr;
             _panelAspect = panelAspect; _fps = fps > 0 ? fps : 24.0; _delaySec = delaySec;
@@ -452,7 +467,7 @@ public sealed class WledSamplingService : IHostedService, IDisposable
 
                     var colors = EdgeSampler.Compute(
                         buf, _sampleW, _sampleH, _hCount, _vCount,
-                        _loopStart, _direction, _letterbox, _pillarbox, _panelAspect);
+                        _loopStart, _direction, _letterbox, _pillarbox, _panelAspect, _skipBottom);
 
                     // Backpressure: wait for room rather than dropping, so ffmpeg is
                     // paced to real time (the sender drains at the playback rate) and

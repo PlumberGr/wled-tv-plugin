@@ -40,6 +40,8 @@ public class WledTvController : ControllerBase
             brightness         = Config.Brightness,
             displayLatencyMs   = Config.DisplayLatencyMs,
             deviceId           = Config.DeviceId,
+            deviceName         = Config.DeviceName,
+            skipBottomEdge     = Config.SkipBottomEdge,
             batchUpdates       = Config.BatchUpdates,
             detectLetterbox    = Config.DetectLetterbox,
             detectPillarbox    = Config.DetectPillarbox
@@ -60,6 +62,8 @@ public class WledTvController : ControllerBase
         cfg.Brightness         = Math.Clamp(s.Brightness, 0, 255);
         cfg.DisplayLatencyMs   = Math.Clamp(s.DisplayLatencyMs, -5000, 5000);
         cfg.DeviceId           = s.DeviceId?.Trim() ?? string.Empty;
+        cfg.DeviceName         = string.IsNullOrEmpty(cfg.DeviceId) ? string.Empty : (s.DeviceName?.Trim() ?? string.Empty);
+        cfg.SkipBottomEdge     = s.SkipBottomEdge;
         cfg.BatchUpdates       = s.BatchUpdates;
         cfg.DetectLetterbox    = s.DetectLetterbox;
         cfg.DetectPillarbox    = s.DetectPillarbox;
@@ -107,6 +111,8 @@ public class SettingsPayload
     public int    Brightness         { get; set; } = 128;
     public int    DisplayLatencyMs   { get; set; }
     public string DeviceId           { get; set; } = string.Empty;
+    public string DeviceName         { get; set; } = string.Empty;
+    public bool   SkipBottomEdge     { get; set; } = false;
     public bool   BatchUpdates       { get; set; } = true;
     public bool   DetectLetterbox    { get; set; } = true;
     public bool   DetectPillarbox    { get; set; } = true;

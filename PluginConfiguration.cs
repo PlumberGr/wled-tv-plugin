@@ -41,6 +41,21 @@ public class PluginConfiguration : BasePluginConfiguration
     public string DeviceId { get; set; } = string.Empty;
 
     /// <summary>
+    /// Name of the selected device (e.g. "TCL98C7L").  Playback from any session
+    /// reporting this device name also matches, because some clients (Jellyfin
+    /// Android TV) report a different device ID during playback than the one
+    /// listed under /Devices.  Empty = match by ID only.
+    /// </summary>
+    public string DeviceName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When true the strip covers only the left, top and right edges (no LEDs
+    /// along the bottom).  The strip then starts at a bottom corner: Direction
+    /// Clockwise = starts bottom-left, Counter-clockwise = starts bottom-right.
+    /// </summary>
+    public bool SkipBottomEdge { get; set; } = false;
+
+    /// <summary>
     /// When true, colour updates are split into 54-LED batches to stay within the
     /// ArduinoJson buffer limit on ESP8266 devices.  Disable on ESP32 controllers
     /// (and other devices with ample heap) to send all LEDs in a single message.
