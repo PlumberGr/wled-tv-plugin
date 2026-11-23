@@ -514,7 +514,7 @@ public sealed class WledSamplingService : IHostedService, IDisposable
                     }
                 }
 
-                if (hasDue)
+                if (hasDue && due.Colors is not null)
                 {
                     if (!_wled.IsOpen)
                     {
